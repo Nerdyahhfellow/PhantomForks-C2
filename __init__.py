@@ -1,4 +1,4 @@
-"""APK Threat Analysis Platform - analyzer package.
+"""Third Eye - analyzer package.
 
 Modules:
     static_analysis   - manifest, permissions, exported components, embedded IOCs

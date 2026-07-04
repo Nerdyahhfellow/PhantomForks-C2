@@ -1,7 +1,7 @@
 """
 analyzer/scoring.py
 
-Risk scoring engine for the APK Threat Analysis Platform.
+Risk scoring engine for Third Eye.
 
 Two layers live here:
 
@@ -134,6 +134,19 @@ def build_breakdown(static_report: dict, network_report: dict, correlation_repor
             f"Periodic beaconing to {b['host']}{b['path']}",
             min(b.get("score", 1), 3),
             "; ".join(b.get("reasons", [])),
+        ))
+
+    # --- Dynamic: runtime behaviors (Frida instrumentation) -------------------
+    # These come from emulator-driven dynamic analysis (dynamic_analysis.py),
+    # not from pcap parsing, so they catch things plain traffic capture can't:
+    # SMS sends, crypto usage, and live connections confirmed even over HTTPS.
+    behavior_severity_points = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+    for b in network_report.get("behaviors", [])[:5]:
+        points = behavior_severity_points.get(b.get("severity", "low"), 1)
+        flags.append(_flag(
+            f"Runtime behavior: {b.get('type', 'unknown').replace('_', ' ')}",
+            points,
+            b.get("description", ""),
         ))
 
     # --- Correlation: the strongest signals ------------------------------

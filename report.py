@@ -19,7 +19,7 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, HRFlowable
 )
 
-TOOL_VERSION = "APK Threat Analysis Platform v1.0"
+TOOL_VERSION = "Third Eye v1.0"
 
 NAVY = colors.HexColor("#0b1220")
 AMBER = colors.HexColor("#d9a441")
@@ -82,14 +82,14 @@ def generate_pdf(static_report: dict, network_report: dict, correlation: dict, v
         buf, pagesize=LETTER,
         topMargin=0.7 * inch, bottomMargin=0.7 * inch,
         leftMargin=0.7 * inch, rightMargin=0.7 * inch,
-        title="APK Forensic Analysis Report",
+        title="Third Eye Forensic Report",
     )
     styles = _styles()
     story = []
 
     generated_at = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    story.append(Paragraph("APK FORENSIC ANALYSIS REPORT", styles["CaseTitle"]))
+    story.append(Paragraph("THIRD EYE FORENSIC REPORT", styles["CaseTitle"]))
     story.append(Paragraph("Case File — Chain of Custody", styles["MonoSmall"]))
     story.append(Spacer(1, 10))
     story.append(_custody_table(static_report, generated_at))

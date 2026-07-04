@@ -1,7 +1,7 @@
 """
 static_analysis.py
 
-Static analysis engine for the APK Threat Analysis Platform.
+Static analysis engine for Third Eye.
 
 Given a path to an .apk file, produces a structured, JSON-serializable
 report covering:
