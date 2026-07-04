@@ -61,7 +61,7 @@
   --shadow-inset: inset 0 1px 0 var(--reflect);
   --shadow: var(--shadow-md), var(--shadow-inset);
 
-  --radius: 14px;
+  --radius: 15px;
   --radius-sm: 9px;
   --radius-pill: 999px;
   --font: 'Inter', system-ui, -apple-system, sans-serif;
@@ -115,7 +115,7 @@
   --accent-subtle: rgba(154, 119, 40, 0.12);
   --accent-glow: rgba(154, 119, 40, 0.16);
 
-  --cyan: #2a9d98;
+  --cyan: #387a76;
   --cyan-subtle: rgba(42, 157, 152, 0.1);
 
   --success: #15803d;
@@ -149,7 +149,7 @@ html, body {
   background-attachment: fixed;
   color: var(--text);
   font-family: var(--font);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.55;
 }
 
@@ -248,7 +248,7 @@ a:hover { text-decoration: underline; }
 .brand-title {
   font-family: var(--brand);
   font-weight: 800;
-  font-size: 20px;
+  font-size: 21px;
   line-height: 1;
   margin: 0;
   letter-spacing: 0.06em;
@@ -269,7 +269,7 @@ a:hover { text-decoration: underline; }
 .brand-tagline {
   margin: 10px 0 0;
   max-width: 360px;
-  font-size: 17px;
+  font-size: 16px;
   color: var(--text-muted);
   letter-spacing: 0.02em;
   line-height: 1.5;
@@ -315,7 +315,7 @@ body.app-has-results .brand-tagline {
 .case-tag-value {
   display: block;
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--accent);
   margin-top: 1px;
@@ -426,12 +426,12 @@ body:not(.app-has-results) .intake-header {
 }
 
 body:not(.app-has-results) .intake-header h2 {
-  font-size: clamp(24px, 4vw, 32px);
+  font-size: clamp(25px, 4vw, 32px);
   margin-bottom: 12px;
 }
 
 body:not(.app-has-results) .intake-header p {
-  font-size: 15px;
+  font-size: 14px;
   max-width: 520px;
   margin-left: auto;
   margin-right: auto;
@@ -468,7 +468,7 @@ body:not(.app-has-results) .intake-note {
   gap: 10px;
   padding: 0 4px 0 14px;
   min-height: 44px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -590,7 +590,7 @@ body:not(.app-has-results) .intake-note {
 
 .intake-header h2 {
   margin: 0 0 8px;
-  font-size: 21px;
+  font-size: 22px;
   font-weight: 600;
   color: var(--text);
   letter-spacing: -0.02em;
@@ -669,7 +669,7 @@ body:not(.app-has-results) .intake-note {
 
 .dropzone-body strong {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text);
 }
 

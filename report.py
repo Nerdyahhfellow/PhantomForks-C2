@@ -21,11 +21,11 @@ from reportlab.platypus import (
 
 TOOL_VERSION = "Third Eye v1.0"
 
-NAVY = colors.HexColor("#0b1220")
-AMBER = colors.HexColor("#d9a441")
-RED = colors.HexColor("#c0392b")
-TEAL = colors.HexColor("#2e8b8b")
-MUTED = colors.HexColor("#5a6472")
+NAVY = colors.HexColor("#223458")
+AMBER = colors.HexColor("#a97c29")
+RED = colors.HexColor("#953227")
+TEAL = colors.HexColor("#257171")
+MUTED = colors.HexColor("#475364")
 
 
 def _styles():
@@ -80,8 +80,8 @@ def generate_pdf(static_report: dict, network_report: dict, correlation: dict, v
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=LETTER,
-        topMargin=0.7 * inch, bottomMargin=0.7 * inch,
-        leftMargin=0.7 * inch, rightMargin=0.7 * inch,
+        topMargin=0.8 * inch, bottomMargin=0.8 * inch,
+        leftMargin=0.8 * inch, rightMargin=0.8 * inch,
         title="Third Eye Forensic Report",
     )
     styles = _styles()
