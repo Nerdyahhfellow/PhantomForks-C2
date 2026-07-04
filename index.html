@@ -101,9 +101,18 @@
       <div class="verdict-flags" id="verdict-flags"></div>
       <div class="verdict-actions">
         <button class="btn-primary btn-report" id="generate-report-btn">Download PDF Report</button>
+        <button class="btn-secondary" id="run-dynamic-btn" hidden>Run Dynamic Analysis</button>
         <button class="btn-secondary" id="new-case-btn">New Scan</button>
       </div>
     </header>
+
+    <div class="dynamic-progress panel-box" id="dynamic-progress" hidden>
+      <h3>Dynamic Analysis in Progress</h3>
+      <div class="dynamic-progress-bar"><div class="dynamic-progress-fill" id="dynamic-progress-fill"></div></div>
+      <div class="dynamic-progress-label" id="dynamic-progress-label">Queued…</div>
+    </div>
+
+    <div class="intake-error" id="dynamic-error" hidden></div>
 
     <div class="dashboard-body">
       <nav class="tabs" id="tabs">

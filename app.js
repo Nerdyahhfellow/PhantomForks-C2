@@ -138,6 +138,9 @@
     el("pcap-input").value = "";
     clearError();
     updateRunButton();
+    if (dynamicPollTimer) clearInterval(dynamicPollTimer);
+    hideDynamicProgress();
+    clearDynamicError();
     exitResultsView();
   });
 
@@ -172,6 +175,122 @@
     if (!state.result) return;
     window.location.href = `/api/report/${state.result.case_id}/pdf`;
   });
+
+  // ---------------- Dynamic analysis (emulator-driven) ----------------
+
+  let dynamicPollTimer = null;
+
+  function updateDynamicButton(data) {
+    const btn = el("run-dynamic-btn");
+    if (data.has_pcap) {
+      btn.hidden = true;
+    } else {
+      btn.hidden = false;
+      btn.disabled = false;
+      btn.textContent = "Run Dynamic Analysis";
+    }
+  }
+
+  el("run-dynamic-btn").addEventListener("click", () => {
+    if (!state.result) return;
+    const btn = el("run-dynamic-btn");
+    btn.disabled = true;
+    btn.textContent = "Starting…";
+    clearDynamicError();
+
+    fetch(`/api/dynamic-analyze/${state.result.case_id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ duration: 60 }),
+    })
+      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok) {
+          showDynamicError(data.error || "Could not start dynamic analysis.");
+          btn.disabled = false;
+          btn.textContent = "Run Dynamic Analysis";
+          return;
+        }
+        showDynamicProgress();
+        pollDynamicJob(data.job_id);
+      })
+      .catch((err) => {
+        showDynamicError("Could not reach the server: " + err.message);
+        btn.disabled = false;
+        btn.textContent = "Run Dynamic Analysis";
+      });
+  });
+
+  const PROGRESS_STEPS = {
+    queued: 5, starting_emulator: 15, installing_apk: 30, capturing_network: 40,
+    launching_app: 50, simulating_interaction: 70, stopping_capture: 85,
+    analyzing_traffic: 92, cleaning_up: 97, completed: 100, error: 100,
+  };
+
+  const PROGRESS_LABELS = {
+    queued: "Queued…", starting_emulator: "Booting emulator…", installing_apk: "Installing APK…",
+    capturing_network: "Starting network capture…", launching_app: "Launching app with runtime hooks…",
+    simulating_interaction: "Simulating user interaction…", stopping_capture: "Stopping capture…",
+    analyzing_traffic: "Analyzing captured traffic…", cleaning_up: "Cleaning up…",
+    completed: "Done.", error: "Failed.",
+  };
+
+  function showDynamicProgress() {
+    el("dynamic-progress").hidden = false;
+    el("dynamic-progress-fill").style.width = "5%";
+    el("dynamic-progress-label").textContent = "Queued…";
+    clearDynamicError();
+  }
+
+  function hideDynamicProgress() {
+    el("dynamic-progress").hidden = true;
+  }
+
+  function showDynamicError(msg) {
+    const errEl = el("dynamic-error");
+    errEl.textContent = msg;
+    errEl.hidden = false;
+  }
+
+  function clearDynamicError() {
+    const errEl = el("dynamic-error");
+    errEl.hidden = true;
+    errEl.textContent = "";
+  }
+
+  function pollDynamicJob(jobId) {
+    if (dynamicPollTimer) clearInterval(dynamicPollTimer);
+    dynamicPollTimer = setInterval(() => {
+      fetch(`/api/dynamic-analyze/status/${jobId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const pct = PROGRESS_STEPS[data.progress] ?? PROGRESS_STEPS[data.status] ?? 10;
+          el("dynamic-progress-fill").style.width = pct + "%";
+          el("dynamic-progress-label").textContent = PROGRESS_LABELS[data.progress] || data.progress || "Working…";
+
+          if (data.status === "completed") {
+            clearInterval(dynamicPollTimer);
+            hideDynamicProgress();
+            state.result = data.result;
+            renderDashboard(data.result);
+            updateDynamicButton(data.result);
+          } else if (data.status === "error") {
+            clearInterval(dynamicPollTimer);
+            hideDynamicProgress();
+            console.error("Dynamic analysis job failed:", data.error);
+            showDynamicError("Dynamic analysis failed: " + (data.error || "unknown error"));
+            const btn = el("run-dynamic-btn");
+            btn.disabled = false;
+            btn.textContent = "Run Dynamic Analysis";
+          }
+        })
+        .catch((err) => {
+          clearInterval(dynamicPollTimer);
+          hideDynamicProgress();
+          showDynamicError("Lost connection while polling dynamic analysis status: " + err.message);
+        });
+    }, 2000);
+  }
 
   // ---------------- Tabs ----------------
 
@@ -208,6 +327,7 @@
     renderNetwork(n, data.has_pcap);
     renderCorrelation(c, data.has_pcap);
     renderTimeline(n, data.has_pcap);
+    updateDynamicButton(data);
   }
 
   function renderVerdict(v, s) {
@@ -347,9 +467,15 @@
     return "s-low";
   }
 
+  function behaviorSeverityClass(sev) {
+    if (sev === "critical" || sev === "high") return "s-high";
+    if (sev === "medium") return "s-mid";
+    return "s-low";
+  }
+
   function renderNetwork(n, hasPcap) {
     if (!hasPcap) {
-      el("tab-network").innerHTML = `<div class="panel-box"><div class="empty-state">No network capture was provided. Upload a .pcap or .pcapng alongside the APK to see traffic and beacon analysis here.</div></div>`;
+      el("tab-network").innerHTML = `<div class="panel-box"><div class="empty-state">No network capture was provided. Upload a .pcap or .pcapng alongside the APK, or run dynamic analysis, to see traffic and beacon analysis here.</div></div>`;
       return;
     }
     const destRows = n.destinations.map(d => `
@@ -366,7 +492,22 @@
         <td>${esc(b.reasons.join("; "))}</td>
       </tr>`).join("");
 
+    const behaviors = n.behaviors || [];
+    const behaviorRows = behaviors.map(b => `
+      <tr>
+        <td><span class="badge-score ${behaviorSeverityClass(b.severity)}">${esc(b.severity)}</span></td>
+        <td>${esc((b.type || "").replace(/_/g, " "))}</td>
+        <td>${esc(b.description)}</td>
+      </tr>`).join("");
+
+    const behaviorPanel = behaviors.length ? `
+      <div class="panel-box">
+        <h3>Runtime Behaviors (Frida) <span class="count-badge">${behaviors.length}</span></h3>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Severity</th><th>Type</th><th>Description</th></tr></thead><tbody>${behaviorRows}</tbody></table></div>
+      </div>` : "";
+
     el("tab-network").innerHTML = `
+      ${behaviorPanel}
       <div class="panel-box">
         <h3>Beaconing Patterns <span class="count-badge">${n.beacons.length}</span></h3>
         ${n.beacons.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Host + Path</th><th>Hits</th><th>Avg Interval</th><th>Jitter</th><th>Score</th><th>Reasons</th></tr></thead><tbody>${beaconRows}</tbody></table></div>` : '<div class="empty-state">No beacon-like patterns detected.</div>'}
