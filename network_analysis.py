@@ -1,7 +1,7 @@
 """
 network_analysis.py
 
-Dynamic/network analysis engine for the APK Threat Analysis Platform.
+Dynamic/network analysis engine for Third Eye.
 
 Given a path to a .pcap/.pcapng file captured while the APK ran in the
 sandbox, extracts every plaintext HTTP request and looks for C2-style

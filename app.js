@@ -7,7 +7,7 @@
 
   // ---------------- Theme toggle ----------------
 
-  const THEME_KEY = "apk-platform-theme";
+  const THEME_KEY = "third-eye-theme";
 
   function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
@@ -63,6 +63,7 @@
       zone.classList.add("has-file");
       onFile(file);
       clearError();
+      updateDockSummary();
     }
   }
 
@@ -117,9 +118,7 @@
           return;
         }
         state.result = data;
-        el("intake-view").hidden = true;
-        renderDashboard(data);
-        el("dashboard-view").hidden = false;
+        enterResultsView(data);
       })
       .catch((err) => {
         setLoading(false);
@@ -139,10 +138,35 @@
     el("pcap-input").value = "";
     clearError();
     updateRunButton();
+    exitResultsView();
+  });
+
+  function updateDockSummary() {
+    const parts = [];
+    if (state.apkFile) parts.push(state.apkFile.name);
+    if (state.pcapFile) parts.push(state.pcapFile.name);
+    el("intake-dock-summary").textContent = parts.length ? parts.join(" · ") : "—";
+  }
+
+  function enterResultsView(data) {
+    document.body.classList.add("app-has-results");
+    el("intake-view").classList.add("intake-minimized");
+    el("intake-collapsed-bar").hidden = false;
+    updateDockSummary();
+    renderDashboard(data);
+    el("dashboard-view").hidden = false;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function exitResultsView() {
+    document.body.classList.remove("app-has-results");
+    el("intake-view").classList.remove("intake-minimized");
+    el("intake-collapsed-bar").hidden = true;
     el("dashboard-view").hidden = true;
     el("case-id-display").hidden = true;
-    el("intake-view").hidden = false;
-  });
+    document.querySelectorAll(".tab-btn").forEach((b, i) => b.classList.toggle("active", i === 0));
+    document.querySelectorAll(".tab-panel").forEach((p, i) => p.classList.toggle("active", i === 0));
+  }
 
   el("generate-report-btn").addEventListener("click", () => {
     if (!state.result) return;
@@ -215,7 +239,7 @@
 
     const html = `
       <div class="panel-box">
-        <h3>Analysis Summary</h3>
+        <h3>Scan Summary</h3>
         <div class="kv-grid">
           <div class="kv-item"><span class="kv-label">Mode</span><span class="kv-value">${esc(analysisMode)}</span></div>
           <div class="kv-item"><span class="kv-label">App name</span><span class="kv-value">${esc(s.app_name)}</span></div>

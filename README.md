@@ -1,4 +1,4 @@
-# APK Threat Analysis Platform
+# Third Eye
 
 A local web app for investigating Android APKs suspected of command-and-control
 (C2) behavior. Combines static analysis (permissions, exported components,

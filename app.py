@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-app.py — APK Threat Analysis Platform (Flask web app)
+app.py — Third Eye (Flask web app)
 
 Wires together:
   analyzer/static_analysis.py  -> analyze_apk()

@@ -1,7 +1,7 @@
 """
 analyzer/scoring.py
 
-Risk scoring engine for the APK Threat Analysis Platform.
+Risk scoring engine for Third Eye.
 
 Two layers live here:
 
