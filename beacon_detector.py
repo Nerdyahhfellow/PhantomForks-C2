@@ -168,6 +168,14 @@ def print_report(findings):
     print()
 
 
+def build_report(pcap_path, interval_tolerance=0.15, min_hits=3):
+    """Run the full beacon-detection pipeline on a pcap and return (findings, request_count).
+    This is the function the web backend calls directly (no subprocess/CLI)."""
+    requests = parse_http_requests(pcap_path)
+    findings = analyze(requests, interval_tolerance, min_hits)
+    return findings, len(requests)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Detect C2-style beaconing in a pcap file.")
     parser.add_argument("pcap", help="Path to .pcap / .pcapng file")

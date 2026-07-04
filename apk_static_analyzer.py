@@ -225,6 +225,35 @@ def print_report(report):
     print()
 
 
+def build_report(apk_path):
+    """Run the full static analysis pipeline on an APK and return the report dict.
+    This is the function the web backend calls directly (no subprocess/CLI)."""
+    a, d_list, dx = AnalyzeAPK(apk_path)
+
+    declared_perms, dangerous_perms = analyze_permissions(a)
+    mismatch = check_category_mismatch(a, dangerous_perms)
+    exported_findings = analyze_exported_components(a)
+    urls, ips, suspicious_kw = scan_strings_for_iocs(a, d_list)
+    signing_findings = analyze_signing(a)
+
+    score = compute_score(dangerous_perms, exported_findings, urls, ips, suspicious_kw, signing_findings, mismatch)
+
+    return {
+        "package": a.get_package(),
+        "app_name": a.get_app_name(),
+        "declared_permissions": declared_perms,
+        "dangerous_permissions": dangerous_perms,
+        "category_mismatch": mismatch,
+        "exported_components": exported_findings,
+        "exported_issue_count": len([f for f in exported_findings if "issue" in f]),
+        "urls": urls,
+        "ips": ips,
+        "suspicious_keywords": suspicious_kw,
+        "signing": signing_findings,
+        "risk_score": score,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description="Static risk analysis of an APK file.")
     parser.add_argument("apk", help="Path to .apk file")
