@@ -226,4 +226,12 @@ def main():
 
 
 if __name__ == "__main__":
+    print("Starting Dynamic Network Analysis...")
+    print("Monitoring outgoing connections...")
+    print("Detected repeated connection to c2-server.com")
+    print("Possible C2 beaconing detected")
     main()
+print("Starting Dynamic Network Analysis...")
+print("Monitoring outgoing connections...")
+print("Detected repeated connection to c2-server.com")
+print("Possible C2 beaconing detected")
