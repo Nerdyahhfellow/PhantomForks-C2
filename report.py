@@ -104,7 +104,8 @@ def generate_pdf(static_report: dict, network_report: dict, correlation: dict, v
     story.append(Paragraph(f"Risk level: {level}  (score: {score})", verdict_style))
     story.append(Paragraph(verdict.get("summary", ""), styles["Body"]))
     story.append(Spacer(1, 6))
-    for flag in verdict.get("top_flags", []):
+    all_flags = sorted(verdict.get("breakdown", []), key=lambda f: -f["points"])
+    for flag in all_flags:
         story.append(Paragraph(f"&bull; <b>+{flag['points']}</b> — {flag['label']}: {flag.get('detail','')}", styles["Body"]))
 
     # App info

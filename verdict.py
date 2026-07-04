@@ -8,7 +8,7 @@ sentence summary, and a breakdown of exactly what contributed to the score
 number.
 """
 
-from analyzer.scoring import build_breakdown, level_for_score, total_score
+from scoring import build_breakdown, level_for_score, total_score
 
 
 def build_verdict(static_report: dict, network_report: dict, correlation: dict) -> dict:

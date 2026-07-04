@@ -198,7 +198,8 @@
 
     const flagsEl = el("verdict-flags");
     flagsEl.innerHTML = "";
-    v.top_flags.forEach((f) => {
+    const allFlags = [...v.breakdown].sort((a, b) => b.points - a.points);
+    allFlags.forEach((f) => {
       const div = document.createElement("div");
       div.className = "flag-chip";
       div.innerHTML = `<span class="flag-points">+${f.points}</span><span>${esc(f.label)}${f.detail ? " — " + esc(f.detail) : ""}</span>`;

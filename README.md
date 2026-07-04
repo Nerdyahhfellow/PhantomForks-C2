@@ -9,24 +9,33 @@ as a chain-of-custody forensic PDF report.
 
 ## What's included
 
+Everything lives in one flat folder — no subfolders, so there's nothing to
+misplace when you unzip it:
+
 ```
-apk_platform/
-├── app.py                     Flask app (routes, upload handling, PDF export)
-├── requirements.txt
-├── analyzer/
-│   ├── static_analysis.py     Manifest, permissions, exported components,
-│   │                          embedded IOCs (URLs/IPs/emails/wallets/tokens),
-│   │                          file tree, signing cert checks
-│   ├── network_analysis.py    Pcap parsing + beacon periodicity detection
-│   ├── correlate.py           Confirmed / Dormant / Unclaimed cross-reference
-│   ├── verdict.py             Combined, explainable risk score
-│   └── report.py              Forensic PDF generator (reportlab)
-├── templates/index.html        Single-page dashboard
-├── static/css/style.css
-├── static/js/app.js
-└── samples/                    Bundled demo cases (C2demo.apk + capture.pcapng,
-                                 calc.apk as a benign baseline) for one-click demos
+app.py                 Flask app (routes, upload handling, PDF export)
+requirements.txt
+
+static_analysis.py     Manifest, permissions, exported components,
+                        embedded IOCs (URLs/IPs/emails/wallets/tokens),
+                        file tree, signing cert checks
+network_analysis.py    Pcap parsing + beacon periodicity detection
+correlate.py           Confirmed / Dormant / Unclaimed cross-reference
+verdict.py             Combined, explainable 0-10 risk score
+scoring.py             Scoring weights + breakdown logic
+report.py              Forensic PDF generator (reportlab)
+
+index.html             Single-page dashboard
+style.css
+app.js
+
+sample_calc.apk         Benign baseline sample
+sample_C2demo.apk       Sample APK with hardcoded beacon URL
+sample_capture.pcapng   Matching network capture for sample_C2demo.apk
 ```
+
+An `uploads/` folder is created automatically the first time you run the
+app — it doesn't need to exist in advance.
 
 ## Setup
 

@@ -276,7 +276,7 @@ def analyze_apk(apk_path):
     signing_findings = analyze_signing(a)
     raw_manifest = get_raw_manifest(a)
 
-    from analyzer.scoring import static_score
+    from scoring import static_score
 
     partial = {
         "dangerous_permissions": dangerous_perms,
