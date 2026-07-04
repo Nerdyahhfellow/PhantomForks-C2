@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APK Threat Analysis Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="masthead-left">
+      <h1 class="title">APK Threat Analysis</h1>
+      <span class="subtitle">Static inspection and network capture analysis in one pass</span>
+    </div>
+    <div class="masthead-right">
+      <div class="case-tag" id="case-id-display" hidden>
+        <span class="case-tag-label">Case</span>
+        <span class="case-tag-value" id="case-id-value">—</span>
+      </div>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark/light mode">
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="app">
+
+  <!-- INTAKE -->
+  <section id="intake-view" class="intake-view">
+    <div class="intake-card">
+      <div class="intake-header">
+        <h2>New Analysis</h2>
+        <p>Upload an APK for static analysis. Add a network capture to include traffic, beacon, and correlation results.</p>
+      </div>
+
+      <div class="upload-grid">
+        <div class="dropzone" id="apk-dropzone">
+          <input type="file" id="apk-input" accept=".apk" hidden>
+          <div class="dropzone-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div class="dropzone-body">
+            <strong>APK file</strong>
+            <span>Required — drag & drop or click to browse</span>
+            <div class="dropzone-file" id="apk-filename" hidden></div>
+          </div>
+        </div>
+
+        <div class="dropzone dropzone-optional" id="pcap-dropzone">
+          <input type="file" id="pcap-input" accept=".pcap,.pcapng" hidden>
+          <div class="dropzone-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </div>
+          <div class="dropzone-body">
+            <strong>Network capture</strong>
+            <span>Optional — .pcap or .pcapng from sandbox run</span>
+            <div class="dropzone-file" id="pcap-filename" hidden></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="intake-error" id="intake-error" hidden></div>
+
+      <button class="btn-primary" id="run-analysis-btn" disabled>
+        <span class="btn-label">Run Analysis</span>
+        <span class="btn-spinner" hidden></span>
+      </button>
+
+      <p class="intake-note">Runs locally on your machine. Use an isolated environment when analyzing unknown samples.</p>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section id="dashboard-view" class="dashboard-view" hidden>
+
+    <div class="verdict-row">
+      <div class="verdict-card" id="verdict-card">
+        <div class="stamp" id="risk-stamp">HIGH RISK</div>
+        <div class="verdict-main">
+          <div class="verdict-score-block">
+            <span class="verdict-score" id="verdict-score">0</span>
+            <span class="verdict-score-label">risk score</span>
+          </div>
+          <div class="verdict-text">
+            <div class="verdict-app-name" id="verdict-app-name">—</div>
+            <div class="verdict-package" id="verdict-package">—</div>
+            <p class="verdict-summary" id="verdict-summary">—</p>
+          </div>
+        </div>
+        <div class="verdict-flags" id="verdict-flags"></div>
+      </div>
+      <div class="verdict-actions">
+        <button class="btn-primary btn-report" id="generate-report-btn">Download PDF Report</button>
+        <button class="btn-secondary" id="new-case-btn">New Analysis</button>
+      </div>
+    </div>
+
+    <nav class="tabs" id="tabs">
+      <button class="tab-btn active" data-tab="overview">Overview</button>
+      <button class="tab-btn" data-tab="permissions">Permissions</button>
+      <button class="tab-btn" data-tab="manifest">Manifest</button>
+      <button class="tab-btn" data-tab="filetree">File Tree</button>
+      <button class="tab-btn" data-tab="iocs">IOCs</button>
+      <button class="tab-btn" data-tab="network">Network</button>
+      <button class="tab-btn" data-tab="correlation">Correlation</button>
+      <button class="tab-btn" data-tab="timeline">Timeline</button>
+    </nav>
+
+    <div class="tab-panels">
+      <section class="tab-panel active" id="tab-overview"></section>
+      <section class="tab-panel" id="tab-permissions"></section>
+      <section class="tab-panel" id="tab-manifest"></section>
+      <section class="tab-panel" id="tab-filetree"></section>
+      <section class="tab-panel" id="tab-iocs"></section>
+      <section class="tab-panel" id="tab-network"></section>
+      <section class="tab-panel" id="tab-correlation"></section>
+      <section class="tab-panel" id="tab-timeline"></section>
+    </div>
+
+  </section>
+
+</main>
+
+<footer class="footer">
+  <span>Automated triage only — findings should be reviewed by a qualified analyst.</span>
+</footer>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
