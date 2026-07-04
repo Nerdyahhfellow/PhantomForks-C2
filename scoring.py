@@ -136,6 +136,19 @@ def build_breakdown(static_report: dict, network_report: dict, correlation_repor
             "; ".join(b.get("reasons", [])),
         ))
 
+    # --- Dynamic: runtime behaviors (Frida instrumentation) -------------------
+    # These come from emulator-driven dynamic analysis (dynamic_analysis.py),
+    # not from pcap parsing, so they catch things plain traffic capture can't:
+    # SMS sends, crypto usage, and live connections confirmed even over HTTPS.
+    behavior_severity_points = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+    for b in network_report.get("behaviors", [])[:5]:
+        points = behavior_severity_points.get(b.get("severity", "low"), 1)
+        flags.append(_flag(
+            f"Runtime behavior: {b.get('type', 'unknown').replace('_', ' ')}",
+            points,
+            b.get("description", ""),
+        ))
+
     # --- Correlation: the strongest signals ------------------------------
     unclaimed = correlation_report.get("unclaimed", [])
     if unclaimed:
