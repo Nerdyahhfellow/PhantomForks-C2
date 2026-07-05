@@ -279,6 +279,90 @@ class AndroidEmulatorController:
         )
         return "Success" in result.stdout
 
+    def grant_install_permission(self, package_name):
+        """Grant the target app permission to install other APKs (i.e. what
+        the "Allow from this source" / "Install unknown apps" system dialog
+        grants interactively) without ever needing to render or tap that
+        dialog at all.
+
+        This used to be handled - unreliably - by simulate_user_interaction()
+        firing blind taps at random screen coordinates and hoping one landed
+        on the right button. That's inherently flaky: the dialog's on-screen
+        position varies by Android version/OEM skin/screen size, so a random
+        tap just as often hits nothing, hits "Cancel", or hits some unrelated
+        part of the app underneath it - which is exactly the "clicks the
+        wrong thing" symptom. Setting the appop directly is deterministic and
+        needs no UI to exist or render at all.
+
+        REQUEST_INSTALL_PACKAGES (the Android 8+/API 26+ per-app appop) is
+        set first; the pre-8 global secure setting is set as a fallback for
+        older API levels where that appop doesn't exist. Both are harmless
+        no-ops on API levels where they don't apply, so setting both rather
+        than branching on version keeps this working across the board."""
+        try:
+            subprocess.run(
+                [self.adb_path, "shell", "appops", "set", package_name,
+                 "REQUEST_INSTALL_PACKAGES", "allow"],
+                capture_output=True, text=True, timeout=15,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+            print(f"Failed to grant install-packages appop to {package_name}: {e}")
+            return False
+        try:
+            subprocess.run(
+                [self.adb_path, "shell", "settings", "put", "secure",
+                 "install_non_market_apps", "1"],
+                capture_output=True, text=True, timeout=15,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass  # best-effort pre-API-26 fallback; not fatal if it fails
+        print(f"Granted install-unknown-apps permission to {package_name}.")
+        return True
+
+    def set_as_default_launcher(self, package_name, activity_name=None):
+        """Make `package_name` the device's default Home app, so
+        launcher-dependent behavior (persistence via HOME, launcher-only
+        payload paths, etc.) actually triggers during the run.
+
+        Same reasoning as grant_install_permission(): the interactive route
+        is the "Use this app as Home" chooser dialog with "Just once" /
+        "Always" buttons whose position isn't fixed, so a blind tap could
+        just as easily dismiss the dialog, pick "Just once" instead of
+        "Always", or miss entirely. `cmd role` talks to RoleManager directly
+        and needs no dialog to exist.
+
+        RoleManager's `cmd role` shell command requires API 29+ (Android
+        10). On older images it doesn't exist, so this falls back to the
+        older (undocumented but long-stable across AOSP builds)
+        `cmd package set-home-activity`, if a launcher activity is known."""
+        try:
+            result = subprocess.run(
+                [self.adb_path, "shell", "cmd", "role", "add-role-holder",
+                 "android.app.role.HOME", package_name],
+                capture_output=True, text=True, timeout=15,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+            print(f"Failed to set {package_name} as default launcher via RoleManager: {e}")
+            result = None
+        if result is not None and result.returncode == 0 and "error" not in (result.stderr or "").lower():
+            print(f"Set {package_name} as default launcher (HOME role).")
+            return True
+        if activity_name:
+            try:
+                fallback = subprocess.run(
+                    [self.adb_path, "shell", "cmd", "package", "set-home-activity",
+                     f"{package_name}/{activity_name}"],
+                    capture_output=True, text=True, timeout=15,
+                )
+                if fallback.returncode == 0:
+                    print(f"Set {package_name}/{activity_name} as default launcher (legacy fallback).")
+                    return True
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                pass
+        print(f"Could not set {package_name} as default launcher on this device/API level; "
+              f"continuing without it.")
+        return False
+
     def uninstall_apk(self, package_name):
         subprocess.run([self.adb_path, "uninstall", package_name], capture_output=True, text=True)
 
@@ -341,7 +425,15 @@ class AndroidEmulatorController:
     def simulate_user_interaction(self, duration=30):
         """Fire random taps/swipes for `duration` seconds to trigger app behavior
         that only happens after user interaction (many banking trojans/spyware
-        stay dormant until the user actually touches the screen)."""
+        stay dormant until the user actually touches the screen).
+
+        NOTE: this is only for triggering general dormant-until-touched
+        behavior. It is deliberately NOT relied on to grant install
+        permissions or set the default launcher - those are set
+        deterministically via grant_install_permission()/
+        set_as_default_launcher() before the app is ever launched (see
+        dynamic_analysis.py), since a blind random tap landing on the right
+        system-dialog button at the right moment isn't reliable."""
         end_time = time.time() + duration
         while time.time() < end_time:
             x = random.randint(100, 700)

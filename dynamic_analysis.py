@@ -519,6 +519,16 @@ class DynamicAnalyzer:
             if not self.emulator.install_apk(self.apk_path):
                 raise RuntimeError("Failed to install APK on emulator.")
 
+            # Grant install-unknown-apps permission and set the sample as
+            # the default launcher deterministically, via adb/RoleManager,
+            # rather than gambling on simulate_user_interaction() randomly
+            # tapping the right button on whatever system dialog happens to
+            # be showing. Best-effort: neither is fatal to the run if the
+            # device/API level doesn't support it.
+            launcher_activity_for_setup = (self.static_report.get("launch_components") or {}).get("launcher_activity")
+            self.emulator.grant_install_permission(package_name)
+            self.emulator.set_as_default_launcher(package_name, activity_name=launcher_activity_for_setup)
+
             # Best-effort root, then a baseline sweep of .apk files already
             # on disk (the just-installed target's own base.apk copy will be
             # among these) — taken now, before the app runs, so the later
