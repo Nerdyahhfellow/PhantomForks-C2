@@ -293,15 +293,40 @@
       banner.hidden = true;
     }
 
-    renderVerdict(v, s);
-    renderOverview(s, n, c, data.has_pcap);
-    renderPermissions(s);
-    renderFileTree(s);
-    renderIOCs(s);
-    renderNetwork(n, data.has_pcap);
-    renderCorrelation(c, data.has_pcap);
-    renderTimeline(n, data.has_pcap);
-    renderDropped(n, data.has_pcap);
+    // Each tab is rendered independently: a bad/unexpected shape in one
+    // tab's data must never prevent the others from rendering. Before this,
+    // renderDashboard called these in a single unbroken chain, so a single
+    // uncaught exception partway through (e.g. in renderVerdict/Overview/
+    // Permissions/etc.) silently aborted everything after it — including
+    // renderDropped — leaving tab-dropped stuck at its blank initial
+    // <section></section> from index.html with no visible error at all.
+    safeRender("verdict", () => renderVerdict(v, s));
+    safeRender("overview", () => renderOverview(s, n, c, data.has_pcap));
+    safeRender("permissions", () => renderPermissions(s));
+    safeRender("filetree", () => renderFileTree(s));
+    safeRender("iocs", () => renderIOCs(s));
+    safeRender("network", () => renderNetwork(n, data.has_pcap));
+    safeRender("correlation", () => renderCorrelation(c, data.has_pcap));
+    safeRender("timeline", () => renderTimeline(n, data.has_pcap));
+    safeRender("dropped", () => renderDropped(n, data.has_pcap));
+  }
+
+  // Runs a single tab's render function; on failure, logs the real error to
+  // the console (so it's actually diagnosable) and puts a visible message in
+  // that tab instead of leaving it blank or breaking every tab after it.
+  function safeRender(tabName, fn) {
+    try {
+      fn();
+    } catch (e) {
+      console.error(`Third Eye: rendering tab "${tabName}" failed:`, e);
+      const panel = el("tab-" + tabName);
+      if (panel) {
+        panel.innerHTML = `<div class="panel-box"><div class="empty-state">
+          Something went wrong rendering this tab (${esc(e.message || String(e))}).
+          Check the browser console for details — other tabs are unaffected.
+        </div></div>`;
+      }
+    }
   }
 
   // Fallback shapes for a dropped APK entry that's missing a piece the
@@ -312,7 +337,7 @@
     return { request_count: 0, destinations: [], beacons: [], timeline: [], network_score: 0, behaviors: [], evasion: {} };
   }
   function emptyCorrelation() {
-    return { confirmed: [], dormant: [], unclaimed: [] };
+    return { confirmed: [], dormant: [], unclaimed: [], verdict_notes: [] };
   }
   function emptyVerdict(reason) {
     return { risk_level: "safe", summary: reason || "Not yet scored.", flags: [] };
