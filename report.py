@@ -21,11 +21,11 @@ from reportlab.platypus import (
 
 TOOL_VERSION = "Third Eye v1.0"
 
-NAVY = colors.HexColor("#223458")
-AMBER = colors.HexColor("#a97c29")
-RED = colors.HexColor("#953227")
-TEAL = colors.HexColor("#257171")
-MUTED = colors.HexColor("#475364")
+NAVY = colors.HexColor("#0b1220")
+AMBER = colors.HexColor("#d9a441")
+RED = colors.HexColor("#c0392b")
+TEAL = colors.HexColor("#2e8b8b")
+MUTED = colors.HexColor("#5a6472")
 
 
 def _styles():
@@ -40,7 +40,7 @@ def _styles():
 
 
 def _level_color(level):
-    return {"critical": RED, "high": RED, "medium": AMBER, "low": TEAL}.get(level, MUTED)
+    return {"risky": RED, "safe": TEAL}.get(level, MUTED)
 
 
 def _custody_table(static_report, generated_at):
@@ -80,8 +80,8 @@ def generate_pdf(static_report: dict, network_report: dict, correlation: dict, v
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=LETTER,
-        topMargin=0.8 * inch, bottomMargin=0.8 * inch,
-        leftMargin=0.8 * inch, rightMargin=0.8 * inch,
+        topMargin=0.7 * inch, bottomMargin=0.7 * inch,
+        leftMargin=0.7 * inch, rightMargin=0.7 * inch,
         title="Third Eye Forensic Report",
     )
     styles = _styles()
@@ -98,15 +98,13 @@ def generate_pdf(static_report: dict, network_report: dict, correlation: dict, v
 
     # Verdict
     story.append(Paragraph("VERDICT", styles["SectionHeading"]))
-    level = verdict.get("risk_level", "low").upper()
-    score = verdict.get("risk_score", 0)
-    verdict_style = ParagraphStyle(name="VerdictColored", parent=styles["Verdict"], textColor=_level_color(verdict.get("risk_level", "low")))
-    story.append(Paragraph(f"Risk level: {level}  (score: {score})", verdict_style))
+    level = verdict.get("risk_level", "safe").upper()
+    verdict_style = ParagraphStyle(name="VerdictColored", parent=styles["Verdict"], textColor=_level_color(verdict.get("risk_level", "safe")))
+    story.append(Paragraph(level, verdict_style))
     story.append(Paragraph(verdict.get("summary", ""), styles["Body"]))
     story.append(Spacer(1, 6))
-    all_flags = sorted(verdict.get("breakdown", []), key=lambda f: -f["points"])
-    for flag in all_flags:
-        story.append(Paragraph(f"&bull; <b>+{flag['points']}</b> — {flag['label']}: {flag.get('detail','')}", styles["Body"]))
+    for flag in verdict.get("flags", []):
+        story.append(Paragraph(f"&bull; <b>{flag['label']}</b>{': ' + flag['detail'] if flag.get('detail') else ''}", styles["Body"]))
 
     # App info
     story.append(Paragraph("APPLICATION DETAILS", styles["SectionHeading"]))

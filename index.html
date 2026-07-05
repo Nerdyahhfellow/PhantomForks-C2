@@ -43,11 +43,11 @@
       <div class="intake-card" id="intake-card">
         <div class="intake-header">
           <h2>Scan a New APK</h2>
-          <p>Upload an APK for static analysis. Add a network capture to include traffic, beacon, and correlation results.</p>
+          <p>Upload an APK to run full static and dynamic analysis automatically.</p>
         </div>
 
         <div class="upload-grid">
-          <div class="dropzone" id="apk-dropzone">
+          <div class="dropzone dropzone-single" id="apk-dropzone">
             <input type="file" id="apk-input" accept=".apk" hidden>
             <div class="dropzone-icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -56,18 +56,6 @@
               <strong>APK file</strong>
               <span>Required — drag & drop or click to browse</span>
               <div class="dropzone-file" id="apk-filename" hidden></div>
-            </div>
-          </div>
-
-          <div class="dropzone dropzone-optional" id="pcap-dropzone">
-            <input type="file" id="pcap-input" accept=".pcap,.pcapng" hidden>
-            <div class="dropzone-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-            </div>
-            <div class="dropzone-body">
-              <strong>Network capture</strong>
-              <span>Optional — .pcap or .pcapng from sandbox run</span>
-              <div class="dropzone-file" id="pcap-filename" hidden></div>
             </div>
           </div>
         </div>
@@ -88,11 +76,7 @@
   <section id="dashboard-view" class="dashboard-view" hidden>
 
     <header class="summary-hero">
-      <div class="stamp" id="risk-stamp">HIGH RISK</div>
-      <div class="hero-score-block">
-        <span class="verdict-score hero-score" id="verdict-score">0</span>
-        <span class="verdict-score-label">risk score</span>
-      </div>
+      <div class="stamp" id="risk-stamp">SAFE</div>
       <div class="hero-meta">
         <div class="verdict-app-name" id="verdict-app-name">—</div>
         <div class="verdict-package" id="verdict-package">—</div>
@@ -101,7 +85,6 @@
       <div class="verdict-flags" id="verdict-flags"></div>
       <div class="verdict-actions">
         <button class="btn-primary btn-report" id="generate-report-btn">Download PDF Report</button>
-        <button class="btn-secondary" id="run-dynamic-btn" hidden>Run Dynamic Analysis</button>
         <button class="btn-secondary" id="new-case-btn">New Scan</button>
       </div>
     </header>
@@ -115,26 +98,31 @@
     <div class="intake-error" id="dynamic-error" hidden></div>
 
     <div class="dashboard-body">
+      <div class="dropped-context-banner" id="dropped-context-banner" hidden>
+        <span id="dropped-context-label">Viewing full report for dropped APK</span>
+        <button class="btn-secondary" id="back-to-primary-btn">← Back to primary scan</button>
+      </div>
+
       <nav class="tabs" id="tabs">
         <button class="tab-btn active" data-tab="overview">Overview</button>
         <button class="tab-btn" data-tab="permissions">Permissions</button>
-        <button class="tab-btn" data-tab="manifest">Manifest</button>
         <button class="tab-btn" data-tab="filetree">File Tree</button>
         <button class="tab-btn" data-tab="iocs">IOCs</button>
         <button class="tab-btn" data-tab="network">Network</button>
         <button class="tab-btn" data-tab="correlation">Correlation</button>
         <button class="tab-btn" data-tab="timeline">Timeline</button>
+        <button class="tab-btn" data-tab="dropped">Dropped APK</button>
       </nav>
 
       <div class="tab-panels">
         <section class="tab-panel active" id="tab-overview"></section>
         <section class="tab-panel" id="tab-permissions"></section>
-        <section class="tab-panel" id="tab-manifest"></section>
         <section class="tab-panel" id="tab-filetree"></section>
         <section class="tab-panel" id="tab-iocs"></section>
         <section class="tab-panel" id="tab-network"></section>
         <section class="tab-panel" id="tab-correlation"></section>
         <section class="tab-panel" id="tab-timeline"></section>
+        <section class="tab-panel" id="tab-dropped"></section>
       </div>
     </div>
 

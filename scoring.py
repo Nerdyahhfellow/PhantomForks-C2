@@ -149,6 +149,40 @@ def build_breakdown(static_report: dict, network_report: dict, correlation_repor
             b.get("description", ""),
         ))
 
+    # --- Dynamic: anti-emulator / sandbox-evasion checks -----------------------
+    evasion = network_report.get("evasion", {})
+    if evasion.get("attempted"):
+        confidence_points = {"high": 3, "medium": 2, "low": 1}
+        points = confidence_points.get(evasion.get("confidence", "low"), 1)
+        sample_signals = "; ".join(s.get("description", "") for s in evasion.get("signals", [])[:2])
+        flags.append(_flag(
+            "Anti-emulator / sandbox evasion checks detected",
+            points,
+            sample_signals,
+        ))
+
+    # --- Dynamic: dropped / second-stage APK(s) --------------------------------
+    dropped_apks = network_report.get("dropped_apks", [])
+    successfully_analyzed = [d for d in dropped_apks if d.get("static")]
+    if successfully_analyzed:
+        names = ", ".join(
+            f"{d['static'].get('package', 'unknown')} (risk {d['static'].get('risk_score', '?')}/10)"
+            for d in successfully_analyzed[:2]
+        )
+        flags.append(_flag(
+            "Downloaded and dropped additional APK(s) at runtime",
+            4,
+            f"{len(successfully_analyzed)} second-stage APK(s) retrieved and analyzed: {names}",
+        ))
+    elif dropped_apks:
+        # We saw the app write a .apk file but couldn't retrieve/analyze it —
+        # still worth flagging, just with less confidence/weight.
+        flags.append(_flag(
+            "Wrote a local .apk file that could not be retrieved for analysis",
+            2,
+            f"{len(dropped_apks)} candidate file(s) detected but not recovered from the device.",
+        ))
+
     # --- Correlation: the strongest signals ------------------------------
     unclaimed = correlation_report.get("unclaimed", [])
     if unclaimed:

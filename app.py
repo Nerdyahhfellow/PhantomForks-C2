@@ -23,7 +23,6 @@ from flask import Flask, request, jsonify, render_template, send_file
 from werkzeug.utils import secure_filename
 
 from static_analysis import analyze_apk
-from network_analysis import analyze_pcap
 from correlate import correlate
 from verdict import build_verdict
 from report import generate_pdf
@@ -49,7 +48,11 @@ DYNAMIC_JOBS = {}
 
 
 def _empty_network_report():
-    return {"request_count": 0, "destinations": [], "beacons": [], "timeline": [], "network_score": 0}
+    return {
+        "request_count": 0, "destinations": [], "beacons": [], "timeline": [], "network_score": 0,
+        "behaviors": [], "evasion": {"attempted": False, "confidence": "none", "signals": []},
+        "dropped_apks": [],
+    }
 
 
 def _empty_correlation_report():
@@ -65,7 +68,6 @@ def index():
 @app.route("/api/analyze", methods=["POST"])
 def api_analyze():
     apk_file = request.files.get("apk")
-    pcap_file = request.files.get("pcap")
 
     if not apk_file or apk_file.filename == "":
         return jsonify({"error": "An APK file is required."}), 400
@@ -78,34 +80,19 @@ def api_analyze():
     apk_path = os.path.join(case_dir, apk_filename)
     apk_file.save(apk_path)
 
-    pcap_path = None
-    if pcap_file and pcap_file.filename != "":
-        pcap_filename = secure_filename(pcap_file.filename)
-        pcap_path = os.path.join(case_dir, pcap_filename)
-        pcap_file.save(pcap_path)
-
     try:
         static_report = analyze_apk(apk_path)
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": f"Static analysis failed: {e}"}), 500
 
-    if pcap_path:
-        try:
-            network_report = analyze_pcap(pcap_path)
-        except Exception as e:
-            traceback.print_exc()
-            return jsonify({"error": f"Network analysis failed: {e}"}), 500
-        correlation_report = correlate(static_report, network_report)
-    else:
-        network_report = _empty_network_report()
-        correlation_report = _empty_correlation_report()
-
+    network_report = _empty_network_report()
+    correlation_report = _empty_correlation_report()
     verdict = build_verdict(static_report, network_report, correlation_report)
 
     result = {
         "case_id": case_id,
-        "has_pcap": pcap_path is not None,
+        "has_pcap": False,
         "apk_path": apk_path,
         "apk_filename": apk_filename,
         "static": static_report,
@@ -115,6 +102,19 @@ def api_analyze():
     }
 
     CASES[case_id] = result
+
+    # Dynamic analysis now runs automatically right alongside static
+    # analysis rather than waiting for a separate button click. It's
+    # emulator-driven and can take 1-2+ minutes, so it still runs in a
+    # background thread and the frontend polls for status — we just kick
+    # it off here instead of behind a second endpoint call.
+    duration = 60
+    job_id = uuid.uuid4().hex[:12]
+    DYNAMIC_JOBS[job_id] = {"status": "queued", "case_id": case_id, "duration": duration}
+    thread = threading.Thread(target=_run_dynamic_job, args=(job_id, case_id), daemon=True)
+    thread.start()
+
+    result["dynamic_job_id"] = job_id
     return jsonify(result)
 
 

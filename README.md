@@ -16,7 +16,7 @@ misplace when you unzip it:
 app.py                 Flask app (routes, upload handling, PDF export)
 requirements.txt
 
-static_analysis.py     Manifest, permissions, exported components,
+static_analysis.py     Permissions, exported components,
                         embedded IOCs (URLs/IPs/emails/wallets/tokens),
                         file tree, signing cert checks
 network_analysis.py    Pcap parsing + beacon periodicity detection
@@ -58,11 +58,52 @@ python3 app.py
 
 Then open **http://127.0.0.1:5000** in your browser.
 
-- Drop an `.apk` (required) and optionally a `.pcap`/`.pcapng` capture, or
-  click one of the bundled sample cases to see the full pipeline instantly.
-- Without a pcap you still get the full static analysis, permissions,
-  manifest, file tree, and IOC tabs — the Network/Correlation/Timeline tabs
-  will note that dynamic data wasn't provided.
+- Drop an `.apk` (required), or click one of the bundled sample cases to see
+  the full pipeline instantly.
+- Static analysis (permissions, file tree, IOCs) runs immediately.
+  Dynamic analysis (emulator + Frida + network capture) kicks off
+  automatically right alongside it and populates the Network/Correlation/
+  Timeline tabs once it finishes — no separate button or manual pcap upload
+  needed.
+- After each dynamic analysis run, the virtual device is automatically wiped
+  back to a clean state (`AndroidEmulatorController.reset_device()`, a
+  `-wipe-data` boot cycle) so the APK that was just installed — and anything
+  it wrote to the device — doesn't carry over into the next scan. You'll see
+  a brief "Resetting virtual device…" step at the end of the progress bar.
+- If the sample drops a second-stage APK on disk during the run (e.g. via
+  `REQUEST_INSTALL_PACKAGES`-style dropper behavior), Third Eye detects it,
+  pulls that file off the device before teardown, and runs a full static
+  analysis plus a short follow-up dynamic pass on it — all shown in the
+  **Dropped APK** tab. Detection is two-layered:
+  - **Filesystem sweep (primary).** Before the sample runs, and again right
+    before it's uninstalled, `AndroidEmulatorController.list_apk_files()`
+    sweeps `/sdcard`, `/storage/emulated/0`, `/data/local/tmp` (plus
+    `/data/data` and `/data/user/0` if `adb root` succeeds) for any file
+    ending in `.apk`. Diffing those two snapshots catches a drop regardless
+    of *how* it was written — buffered/byte-range writes, `java.nio`, Okio,
+    native code via JNI, a download-to-temp-name-then-`renameTo()` pattern,
+    or shelling out to `pm install` all show up here, none of which is
+    guaranteed to trip a fixed set of hooked Java methods.
+  - **Frida hooks (corroborating).** `FileOutputStream` constructors/writes,
+    `DownloadManager.Request`, and `PackageInstaller.Session.commit()` are
+    still hooked and timestamped, so when they do fire you get a live
+    play-by-play in the Runtime Behaviors table, not just an end-of-run
+    file diff.
+  - **Launching the payload for its own dynamic pass.** Second-stage
+    payloads very often have no launcher activity — they're built to run as
+    a background service/receiver, not something a user taps, so a plain
+    spawn/`monkey` launch silently does nothing. Third Eye reads the
+    dropped APK's manifest and starts it the way it's actually meant to be
+    started: its launcher activity if it has one, otherwise the first
+    exported service (`am start-service`), exported receiver
+    (`am broadcast` with its declared action), or non-launcher activity it
+    can find — then attaches Frida to the resulting process. If none of
+    those exist, the tab says so explicitly rather than silently showing an
+    empty dynamic report.
+- The same tab also reports whether the sample probed for signs it's
+  running on an emulator/sandbox rather than a real phone (system property
+  checks like `ro.kernel.qemu`, known emulator-only files, `getprop`/`su`
+  shell probes, etc.) — a classic anti-analysis evasion technique.
 - Click **Generate Forensic Report** on any completed case to download the
   chain-of-custody PDF.
 

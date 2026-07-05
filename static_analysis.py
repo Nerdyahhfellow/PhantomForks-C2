@@ -10,7 +10,6 @@ report covering:
     - declared permissions, with dangerous ones flagged and explained
     - category mismatch heuristic (simple app claiming dangerous perms)
     - exported components without a permission guard
-    - raw AndroidManifest.xml (pretty-printed) for the manifest viewer
     - full APK file tree (via zipfile, no androguard dependency needed here)
     - embedded IOCs pulled from dex strings: URLs, raw IPs, emails,
       phone numbers, crypto wallet addresses, and suspicious keywords
@@ -29,7 +28,6 @@ import hashlib
 import re
 import sys
 import zipfile
-from xml.dom import minidom
 
 try:
     from loguru import logger as _loguru_logger
@@ -159,6 +157,74 @@ def check_category_mismatch(a, dangerous_found):
     return None
 
 
+def _resolve_component_name(name, package):
+    """Manifest component names can be relative (`.Foo`), bare (`Foo`), or
+    fully-qualified (`com.x.Foo`) — normalize to fully-qualified since
+    that's what `am start`/`am broadcast`/`am start-service` need."""
+    if not name:
+        return name
+    if name.startswith("."):
+        return package + name
+    if "." not in name:
+        return package + "." + name
+    return name
+
+
+def analyze_launch_components(a):
+    """Find how this package can actually be *started* on a device.
+
+    Most legitimate apps have a launcher activity (`MAIN`/`LAUNCHER` intent
+    filter), which is what the dynamic-analysis spawn-gate flow assumes.
+    Second-stage/dropped payloads very often don't — they're built to run
+    only as a background service or a broadcast receiver once installed,
+    with no UI a user is meant to tap. Trying to spawn/launch those the
+    normal way silently does nothing (no crash, no process, no behavior to
+    observe), which looks like "nothing happened" rather than an error.
+
+    Returns the launcher activity if there is one, plus every exported
+    service/receiver/activity as fallbacks so a dropped payload without a
+    launcher can still be started deliberately for its short dynamic pass.
+    """
+    android_ns = "{http://schemas.android.com/apk/res/android}"
+    package = a.get_package()
+    manifest = a.get_android_manifest_xml()
+
+    launcher_activity = None
+    activities = []
+    for node in manifest.findall(".//activity"):
+        name = _resolve_component_name(node.get(f"{android_ns}name"), package)
+        if not name:
+            continue
+        activities.append({"name": name})
+        for intent in node.findall("intent-filter"):
+            actions = [n.get(f"{android_ns}name") for n in intent.findall("action")]
+            categories = [n.get(f"{android_ns}name") for n in intent.findall("category")]
+            if "android.intent.action.MAIN" in actions and "android.intent.category.LAUNCHER" in categories:
+                if not launcher_activity:
+                    launcher_activity = name
+
+    def _exported_components(tag):
+        out = []
+        for node in manifest.findall(f".//{tag}"):
+            name = _resolve_component_name(node.get(f"{android_ns}name"), package)
+            exported = node.get(f"{android_ns}exported")
+            has_filter = node.find("intent-filter") is not None
+            if not name or not (exported == "true" or (exported is None and has_filter)):
+                continue
+            actions = []
+            for intent in node.findall("intent-filter"):
+                actions += [n.get(f"{android_ns}name") for n in intent.findall("action")]
+            out.append({"name": name, "actions": [x for x in actions if x]})
+        return out
+
+    return {
+        "launcher_activity": launcher_activity,
+        "activities": activities,
+        "services": _exported_components("service"),
+        "receivers": _exported_components("receiver"),
+    }
+
+
 def analyze_exported_components(a):
     findings = []
     android_ns = "{http://schemas.android.com/apk/res/android}"
@@ -184,20 +250,6 @@ def analyze_exported_components(a):
                 })
 
     return findings
-
-
-def get_raw_manifest(a):
-    """Pretty-printed AndroidManifest.xml text for the manifest viewer tab."""
-    try:
-        import lxml.etree as ET
-        xml_bytes = ET.tostring(a.get_android_manifest_xml(), pretty_print=True)
-        return xml_bytes.decode("utf-8", errors="replace")
-    except Exception:
-        try:
-            raw = a.get_android_manifest_axml().get_xml()
-            return minidom.parseString(raw).toprettyxml(indent="  ")
-        except Exception as e:
-            return f"<!-- Could not render manifest: {e} -->"
 
 
 def scan_strings_for_iocs(d_list):
@@ -274,7 +326,7 @@ def analyze_apk(apk_path):
     exported_findings = analyze_exported_components(a)
     iocs = scan_strings_for_iocs(d_list)
     signing_findings = analyze_signing(a)
-    raw_manifest = get_raw_manifest(a)
+    launch_components = analyze_launch_components(a)
 
     from scoring import static_score
 
@@ -299,10 +351,10 @@ def analyze_apk(apk_path):
         "dangerous_permissions": dangerous_perms,
         "category_mismatch": mismatch,
         "exported_components": exported_findings,
-        "raw_manifest": raw_manifest,
         "file_tree": file_tree,
         "iocs": iocs,
         "signing": signing_findings,
+        "launch_components": launch_components,
         "risk_score": score,
     }
 
