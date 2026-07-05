@@ -2,42 +2,35 @@
 verdict.py
 
 Combines the static, network, and correlation reports into a single
-explainable verdict for the top of the dashboard: a plain Safe/Risky
-classification, a one sentence summary, and the list of specific things
-that contributed to that call — as a plain bullet list, not a points
-breakdown. The underlying 0-10 scoring in scoring.py is still used
-internally to decide Safe vs. Risky and to order the bullets by
-severity, but the numbers themselves are never surfaced to the
-investigator.
+explainable verdict for the top of the dashboard: a risk level, a one
+sentence summary, and a breakdown of exactly what contributed to the score
+("+15 for exported activity without permission" style), rather than a bare
+number.
 """
 
-from scoring import build_breakdown, total_score
-
-# Anything below this on the internal 0-10 scale is called "safe" — this
-# is the same cutoff that used to separate "low" from "medium" risk.
-RISKY_THRESHOLD = 2
+from scoring import build_breakdown, level_for_score, total_score
 
 
 def build_verdict(static_report: dict, network_report: dict, correlation: dict) -> dict:
     breakdown = build_breakdown(static_report, network_report, correlation)
     score = total_score(breakdown)
-    is_risky = score >= RISKY_THRESHOLD
+    level = level_for_score(score)
 
-    if is_risky:
-        summary = ("Risk indicators found in this app's behavior; treat it as unsafe "
-                   "until an investigator reviews the flags below.")
+    top_flags = sorted(breakdown, key=lambda x: x["points"], reverse=True)[:3]
+
+    if level == "critical":
+        summary = "Multiple strong indicators of active command-and-control behavior."
+    elif level == "high":
+        summary = "Significant risk indicators found; behavior is consistent with malware."
+    elif level == "medium":
+        summary = "Some risk indicators found; warrants closer investigator review."
     else:
-        summary = "No significant risk indicators found; behavior appears benign."
-
-    # Ordered worst-first internally (by the same weight that used to be
-    # shown as "+N"), then the weight itself is dropped from what's
-    # returned — the dashboard shows why something was flagged, not a
-    # score for it.
-    ordered = sorted(breakdown, key=lambda f: f["points"], reverse=True)
-    flags = [{"label": f["label"], "detail": f["detail"]} for f in ordered]
+        summary = "Few or no risk indicators found; behavior appears benign."
 
     return {
-        "risk_level": "risky" if is_risky else "safe",
+        "risk_score": score,
+        "risk_level": level,
         "summary": summary,
-        "flags": flags,
+        "breakdown": breakdown,
+        "top_flags": top_flags,
     }

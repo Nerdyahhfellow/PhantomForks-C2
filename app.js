@@ -365,7 +365,30 @@
     renderDashboard(state.primaryCase);
   });
 
-  function renderVerdict(v, s) {
+  // v62's verdict.py (kept untouched, per request) still returns the older
+  // verdict shape: { risk_score, risk_level: "low"/"medium"/"high"/"critical",
+  // breakdown: [{label, detail, points}], top_flags }. This UI (from v66)
+  // expects the newer Safe/Risky shape: { risk_level: "safe"/"risky", flags:
+  // [{label, detail}] } — the CSS only defines .stamp.safe/.stamp.risky, and
+  // there's no "flags" field on the old shape at all. Without this adapter,
+  // every scan silently rendered as "SAFE" with no flags listed, regardless
+  // of the actual score, since v.risk_level was never literally "risky" and
+  // v.flags was always undefined. This translates old -> new in one place so
+  // neither side has to change.
+  function normalizeVerdict(v) {
+    if (!v || typeof v !== "object") return emptyVerdict();
+    if (v.risk_level === "safe" || v.risk_level === "risky") return v; // already new shape
+    if (!("breakdown" in v) && !("risk_score" in v)) return v; // unrecognized shape, pass through
+    const level = v.risk_level; // "low" | "medium" | "high" | "critical" | undefined
+    return {
+      risk_level: level && level !== "low" ? "risky" : "safe",
+      summary: v.summary,
+      flags: [...(v.breakdown || [])].sort((a, b) => (b.points || 0) - (a.points || 0)),
+    };
+  }
+
+  function renderVerdict(rawV, s) {
+    const v = normalizeVerdict(rawV);
     el("verdict-app-name").textContent = s.app_name || s.metadata.filename;
     el("verdict-package").textContent = s.package;
     el("verdict-summary").textContent = v.summary;

@@ -40,7 +40,7 @@ def _styles():
 
 
 def _level_color(level):
-    return {"risky": RED, "safe": TEAL}.get(level, MUTED)
+    return {"critical": RED, "high": RED, "medium": AMBER, "low": TEAL}.get(level, MUTED)
 
 
 def _custody_table(static_report, generated_at):
@@ -98,13 +98,15 @@ def generate_pdf(static_report: dict, network_report: dict, correlation: dict, v
 
     # Verdict
     story.append(Paragraph("VERDICT", styles["SectionHeading"]))
-    level = verdict.get("risk_level", "safe").upper()
-    verdict_style = ParagraphStyle(name="VerdictColored", parent=styles["Verdict"], textColor=_level_color(verdict.get("risk_level", "safe")))
-    story.append(Paragraph(level, verdict_style))
+    level = verdict.get("risk_level", "low").upper()
+    score = verdict.get("risk_score", 0)
+    verdict_style = ParagraphStyle(name="VerdictColored", parent=styles["Verdict"], textColor=_level_color(verdict.get("risk_level", "low")))
+    story.append(Paragraph(f"Risk level: {level}  (score: {score})", verdict_style))
     story.append(Paragraph(verdict.get("summary", ""), styles["Body"]))
     story.append(Spacer(1, 6))
-    for flag in verdict.get("flags", []):
-        story.append(Paragraph(f"&bull; <b>{flag['label']}</b>{': ' + flag['detail'] if flag.get('detail') else ''}", styles["Body"]))
+    all_flags = sorted(verdict.get("breakdown", []), key=lambda f: -f["points"])
+    for flag in all_flags:
+        story.append(Paragraph(f"&bull; <b>+{flag['points']}</b> — {flag['label']}: {flag.get('detail','')}", styles["Body"]))
 
     # App info
     story.append(Paragraph("APPLICATION DETAILS", styles["SectionHeading"]))
